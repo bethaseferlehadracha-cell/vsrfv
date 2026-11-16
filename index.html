@@ -730,6 +730,17 @@ textarea.k-inp{min-height:84px;resize:vertical;line-height:1.6}
 .k-fwr .k-del{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:var(--k-faint);background:none;border:0;cursor:pointer}
 .k-fwr .k-del:hover{background:var(--k-c5);color:var(--k-i5)}
 .k-fwr .k-del svg{width:17px;height:17px}
+.k-insps{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-inline-start:52px}
+.k-chip{display:inline-flex;align-items:center;gap:7px;background:var(--k-subtle);border-radius:999px;padding:4px;padding-inline-end:6px;font:600 13.5px 'Heebo',sans-serif;color:var(--k-fg)}
+.k-chip.ro{padding-inline-end:12px}
+.k-chip.me{background:var(--k-c1)}
+.k-chip .k-av{width:26px;height:26px;font-size:10px}
+.k-chip button{width:24px;height:24px;border-radius:50%;border:0;background:none;color:var(--k-faint);cursor:pointer;display:grid;place-items:center}
+.k-chip button:hover{background:var(--k-c5);color:var(--k-i5)}
+.k-chip button svg{width:13px;height:13px}
+.k-addinsp{display:inline-flex;align-items:center;gap:6px;border:1.5px dashed var(--k-border);border-radius:999px;padding:6px 14px 6px 12px;background:none;font:600 13.5px 'Heebo',sans-serif;color:var(--k-muted);cursor:pointer}
+.k-addinsp:hover{border-color:var(--k-blue2);color:var(--k-blue)}
+.k-addinsp svg{width:15px;height:15px}
 .k-addfw{border:1.5px dashed var(--k-border);border-radius:14px;padding:13px;display:flex;justify-content:center;align-items:center;gap:8px;color:var(--k-muted);font:700 14px 'Heebo';background:none;cursor:pointer;width:100%}
 .k-addfw:hover{border-color:var(--k-blue2);color:var(--k-blue)}
 .k-addfw svg{width:17px;height:17px}
@@ -830,8 +841,9 @@ textarea.k-inp{min-height:84px;resize:vertical;line-height:1.6}
   .k-form{padding:18px}
   .k-grid2{grid-template-columns:1fr}
   .k-who{min-width:0;width:100%}
-  .k-fwr .k-nm{min-width:0;flex:1 1 calc(100% - 56px)}
-  .k-fwr .k-who{flex:1 1 calc(100% - 52px);width:auto}
+  .k-fwr .k-nm{min-width:0;flex:1 1 calc(100% - 106px)}
+  .k-fwr .k-nm select.k-inp{width:84px}
+  .k-insps{padding-inline-start:0}
   .k-vs:not(.on) span:last-child{display:none}
   .k-vs:not(.on){flex:0 0 auto}
   .k-srch{max-width:none}
@@ -840,7 +852,8 @@ textarea.k-inp{min-height:84px;resize:vertical;line-height:1.6}
   .k-ws-tabs{padding:12px 16px 0}
   .k-ws-sub{padding:8px 16px 0}
   .k-ws .view{padding:14px 16px 110px}
-  .k-pick.k-sheet{position:fixed;left:0;right:0;bottom:0;top:auto!important;width:auto;max-height:70vh;border-radius:22px 22px 0 0;padding:12px 12px 24px}
+  .k-pick.k-sheet{position:fixed;left:8px;right:8px!important;top:8px;bottom:auto;width:auto;max-height:70vh;border-radius:20px;padding:12px}
+  .k-gph .k-insps{padding-inline-start:0!important}
   .k-modal-back{place-items:end stretch;padding:0}
   .k-modal{max-width:none;border-radius:22px 22px 0 0;max-height:88vh}
   .toast{bottom:96px}
@@ -4584,8 +4597,8 @@ function reportHTML(){
     return `<tr><td><b>${esc(f.label||'מסגרת')}</b></td>${cells}<td class="c scorecell">${fmt(fs)} ${fb.t!=='—'?'· '+fb.t:''}</td></tr>`;
   }).join('');
   // inspectors / frameworks listing
-  const fwList=S.frameworks.map(f=>{const ins=S.inspectors.find(p=>p.id===f.inspectorId);
-    return `<li><b>${esc(f.label||'מסגרת')}</b> (${esc(f.kind)}) — נבדקה ע"י: ${ins?[ins.rank,ins.name].filter(Boolean).join(' ')+(ins.role?', '+ins.role:''):'לא הוקצה'}</li>`;}).join('');
+  const fwList=S.frameworks.map(f=>{const ins=kFwLabels(f);
+    return `<li><b>${esc(f.label||'מסגרת')}</b> (${esc(f.kind)}) — נבדקה ע"י: ${ins?esc(ins):'לא הוקצה'}</li>`;}).join('');
   const dirs=S.report.directives.filter(d=>d.trim());
   // section 5 findings tables
   const findTables = S.frameworks.map(f=>frameworkFindings(f)).join('');
@@ -5232,14 +5245,27 @@ function kSesSet(v){ try{ v?localStorage.setItem(K_SES,JSON.stringify(v)):localS
 /* ---------- הרשאות ---------- */
 const kMe = () => KA.user && KA.user.id;
 const kIsAdmin = () => !!(KA.user && KA.user.role==='admin');
+/* כמה בקרים לאותה מסגרת: f.insps=[{uid,name,rank}] (תואם לאחור לשדה inspectorId הבודד) */
+function kFwInsps(f){ if(!f) return []; if(Array.isArray(f.insps)) return f.insps.filter(x=>x&&(x.uid||x.name));
+  return (f.inspectorId || f.inspName)?[{uid:f.inspectorId||'',name:f.inspName||'',rank:f.inspRank||''}]:[]; }
+function kFwSetInsps(f,list){ f.insps=list; const a=list[0]; f.inspectorId=a?(a.uid||''):''; f.inspName=a?(a.name||''):''; f.inspRank=a?(a.rank||''):''; }
+function kFwHas(f,uid){ return !!uid && kFwInsps(f).some(x=>x.uid===uid); }
+function kFwNames(f){ return kFwInsps(f).map(x=>kUserName(x.uid,x.name)).join(', '); }
+function kFwLabels(f){ return kFwInsps(f).map(x=>kUserLabel(x.uid,x.name,x.rank)).join(', '); }
+function kGphInsps(d){ if(!d) return []; if(Array.isArray(d.gphInsps)&&d.gphInsps.length) return d.gphInsps.filter(x=>x&&(x.uid||x.name));
+  const g=d.gphInspector; return g&&(g.uid||g.name)?[g]:[]; }
+function kGphSet(d,list){ d.gphInsps=list; d.gphInspector=list[0]?kclone(list[0]):null; }
+function kGphHas(d,uid){ return !!uid && kGphInsps(d).some(x=>x.uid===uid); }
+function kGphNames(d){ return kGphInsps(d).map(x=>kUserName(x.uid,x.name)).join(', '); }
+function kGphLabels(d){ return kGphInsps(d).map(x=>kUserLabel(x.uid,x.name,x.rank)).join(', '); }
 function kMyRoles(doc, uid){ uid=uid||kMe(); const r=[]; if(!doc) return r;
-  (doc.frameworks||[]).forEach(f=>{ if(f.inspectorId&&f.inspectorId===uid) r.push({t:'fw',id:f.id,label:f.label||'מסגרת'}); });
-  if(doc.gphEnabled && doc.gphInspector && doc.gphInspector.uid===uid) r.push({t:'gph',label:'רמת חטיבה (גפ"ה)'});
+  (doc.frameworks||[]).forEach(f=>{ if(kFwHas(f,uid)) r.push({t:'fw',id:f.id,label:f.label||'מסגרת'}); });
+  if(doc.gphEnabled && kGphHas(doc,uid)) r.push({t:'gph',label:'רמת חטיבה (גפ"ה)'});
   if(doc.meta && doc.meta.commander && doc.meta.commander.uid===uid) r.push({t:'cmd',label:'מפקד/ת הביקורת'});
   return r; }
 function kCanScope(scope){ if(kIsAdmin()) return true; if(!S) return false;
-  if(scope==='gph') return !!(S.gphEnabled && S.gphInspector && S.gphInspector.uid===kMe());
-  const f=(S.frameworks||[]).find(x=>x.id===scope); return !!(f && f.inspectorId && f.inspectorId===kMe()); }
+  if(scope==='gph') return !!(S.gphEnabled && kGphHas(S,kMe()));
+  const f=(S.frameworks||[]).find(x=>x.id===scope); return kFwHas(f,kMe()); }
 function kCanReport(){ if(kIsAdmin()) return true; return kMyRoles(S).length>0; }
 function kRO(msg){ toast(msg||'צפייה בלבד — אפשר לערוך רק את הענף שלך'); return false; }
 
@@ -5415,13 +5441,17 @@ function kPopAt(anchor, html, cls){
 }
 function kPopPlace(anchor){
   const p=document.getElementById('kpop'); if(!p) return null; const r=anchor.getBoundingClientRect();
-  if(window.innerWidth<=900 && p.classList.contains('k-pick')){ p.classList.add('k-sheet'); return p; }
+  if(window.innerWidth<=900 && p.classList.contains('k-pick')){ p.classList.add('k-sheet'); const bk=document.querySelector('#kpick .k-pop-back'); if(bk) bk.style.background='rgba(20,27,46,.38)'; kPickFit(); return p; }
   const pw=p.offsetWidth, ph=p.offsetHeight;
   let right = window.innerWidth - r.right; if(window.innerWidth - right - pw < 8) right = Math.max(8, window.innerWidth - pw - 8);
   let top = r.bottom + 6; if(top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
   if(anchor.closest('.k-rail')){ right = window.innerWidth - r.left + 10; top = Math.max(8, Math.min(r.top - ph + r.height, window.innerHeight - ph - 8)); }
   p.style.right = Math.max(8,right)+'px'; p.style.top = top+'px'; return p;
 }
+/* בטלפון: חלון הבחירה נצמד לראש המסך ומתכווץ לגובה שנשאר מעל המקלדת */
+function kPickFit(){ const p=document.getElementById('kpop'); if(!p||!p.classList.contains('k-sheet')) return; const vv=window.visualViewport;
+  const h=vv?vv.height:window.innerHeight, top=vv?vv.offsetTop:0; p.style.top=(top+8)+'px'; p.style.maxHeight=Math.max(180,h-16)+'px'; }
+if(window.visualViewport){ window.visualViewport.addEventListener('resize',kPickFit); window.visualViewport.addEventListener('scroll',kPickFit); }
 function kPopClose(){ const b=document.getElementById('kpick'); if(b) b.innerHTML=''; KA.pick=null; }
 function kMeMenu(el){ const u=KA.user;
   kPopAt(el, `<div class="k-who">${kAv(u.name)}<div><b>${kesc(kFull(u))}</b><small>${u.role==='admin'?'מנהל/ת מערכת':'בקר/ית'}</small></div></div>
@@ -5439,7 +5469,7 @@ function kPickUser(anchor, opts, cb){
 function kPickList(){
   const box=document.getElementById('kpicklist'); if(!box||!KA.pick) return;
   const q=(document.getElementById('kpickq').value||'').trim(); const o=KA.pick.opts;
-  const list=kUsersSorted().filter(u=>!q || (u.name+' '+(u.rank||'')).includes(q));
+  const list=kUsersSorted().filter(u=>!(o.exclude||[]).includes(u.id)).filter(u=>!q || (u.name+' '+(u.rank||'')).includes(q));
   let html='';
   if(o.allowClear && !q) html+=`<button class="k-pi" onclick="kPickDo('')"><span class="k-plus">${kic('x')}</span><div>ללא שיבוץ<small>להשאיר פנוי בינתיים</small></div></button>`;
   html+=list.map(u=>{ const n=kActiveCount(u.id);
@@ -5468,8 +5498,8 @@ function kRing(p, label){ const r=54, c=2*Math.PI*r;
 function kSortInsps(list){ const o={run:0,plan:1,done:2};
   return list.sort((a,b)=>{ const sa=kStatus(a[1]), sb=kStatus(b[1]); if(sa!==sb) return o[sa]-o[sb];
     const da=(a[1].meta||{}).dateFromISO||'9999', db=(b[1].meta||{}).dateFromISO||'9999'; return sa==='done'? db.localeCompare(da) : da.localeCompare(db); }); }
-function kTeam(doc){ const ids=new Set(); (doc.frameworks||[]).forEach(f=>{ if(f.inspectorId) ids.add(f.inspectorId); });
-  if(doc.gphEnabled&&doc.gphInspector&&doc.gphInspector.uid) ids.add(doc.gphInspector.uid); return [...ids]; }
+function kTeam(doc){ const ids=new Set(); (doc.frameworks||[]).forEach(f=>{ kFwInsps(f).forEach(x=>{ if(x.uid) ids.add(x.uid); }); });
+  if(doc.gphEnabled) kGphInsps(doc).forEach(x=>{ if(x.uid) ids.add(x.uid); }); return [...ids]; }
 function kTargetOf(roles){ const fw=roles.find(r=>r.t==='fw'); if(fw) return 'fw:'+fw.id; if(roles.some(r=>r.t==='gph')) return 'gph'; return 'dash'; }
 function kViewMine(){
   const me=KA.user; const today=new Intl.DateTimeFormat('he-IL',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
@@ -5528,8 +5558,8 @@ function kTimeline(list){
 }
 function kInsCard(id,d){ const m=d.meta||{}; const pct=kDocPct(d), st=kStatus(d);
   const cmd = m.commander&&m.commander.name ? kUserLabel(m.commander.uid,m.commander.name,m.commander.rank) : '';
-  const asg=(d.frameworks||[]).map(f=>`<span class="${f.inspectorId&&f.inspectorId===kMe()?'me':''}"><b>${kesc(f.label||'מסגרת')}</b> · ${kesc(f.inspectorId||f.inspName?kUserName(f.inspectorId,f.inspName):'לא שובץ')}</span>`);
-  if(d.gphEnabled) asg.unshift(`<span class="${d.gphInspector&&d.gphInspector.uid===kMe()?'me':''}"><b>גפ"ה</b> · ${kesc(d.gphInspector?kUserName(d.gphInspector.uid,d.gphInspector.name):'לא שובץ')}</span>`);
+  const asg=(d.frameworks||[]).map(f=>`<span class="${kFwHas(f,kMe())?'me':''}"><b>${kesc(f.label||'מסגרת')}</b> · ${kesc(kFwInsps(f).length?kFwNames(f):'לא שובץ')}</span>`);
+  if(d.gphEnabled) asg.unshift(`<span class="${kGphHas(d,kMe())?'me':''}"><b>גפ"ה</b> · ${kesc(kGphInsps(d).length?kGphNames(d):'לא שובץ')}</span>`);
   return `<div class="k-card k-ins" onclick="kOpen('${id}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')kOpen('${id}')">${kDTile(d)}<div class="k-body">
     <h5><span>${kesc(m.name||'ביקורת הדרכה')}</span>${kStPill(d)}</h5>
     <div class="k-s">${[m.unit,cmd].filter(Boolean).map(kesc).join(' · ')}${kRange(m)?' · '+kRange(m):''}</div>
@@ -5542,7 +5572,7 @@ function kViewArchive(){
   const cnt={all:all.length,run:0,plan:0,done:0}; all.forEach(([i,d])=>cnt[kStatus(d)]++);
   let list=all.filter(([id,d])=>KA.seg==='all'||kStatus(d)===KA.seg);
   if(q) list=list.filter(([id,d])=>{ const m=d.meta||{}; const txt=[m.name,m.unit,m.type,m.commander&&m.commander.name,
-      ...(d.frameworks||[]).map(f=>f.label+' '+kUserName(f.inspectorId,f.inspName)), d.gphInspector&&kUserName(d.gphInspector.uid,d.gphInspector.name)].join(' ');
+      ...(d.frameworks||[]).map(f=>f.label+' '+kFwNames(f)), kGphNames(d)].join(' ');
     return txt.includes(q); });
   list=kSortInsps(list);
   const adm=kIsAdmin(); const leg=adm&&kLegacyData();
@@ -5566,7 +5596,7 @@ function kArchListHTML(list,total){
   return `<div class="k-list">${list.map(([id,d])=>kInsCard(id,d)).join('')}</div>`; }
 function kArchList(){ const all=Object.entries(KA.insps); const q=KA.q.trim();
   let list=all.filter(([id,d])=>KA.seg==='all'||kStatus(d)===KA.seg);
-  if(q) list=list.filter(([id,d])=>{ const m=d.meta||{}; return [m.name,m.unit,m.type,m.commander&&m.commander.name,...(d.frameworks||[]).map(f=>f.label+' '+kUserName(f.inspectorId,f.inspName)),d.gphInspector&&kUserName(d.gphInspector.uid,d.gphInspector.name)].join(' ').includes(q); });
+  if(q) list=list.filter(([id,d])=>{ const m=d.meta||{}; return [m.name,m.unit,m.type,m.commander&&m.commander.name,...(d.frameworks||[]).map(f=>f.label+' '+kFwNames(f)),kGphNames(d)].join(' ').includes(q); });
   document.getElementById('karchlist').innerHTML=kArchListHTML(kSortInsps(list),all.length); }
 
 /* =====================================================================
@@ -5574,9 +5604,9 @@ function kArchList(){ const all=Object.entries(KA.insps); const q=KA.q.trim();
    ===================================================================== */
 const K_TYPES=['אינטגרטיבית','מכינה לסיקור מטכ"לי','ביקורת תקופתית','ביקורת פתע'];
 const K_KINDS=['גדוד','ענף','פלוגה','מחלקה','אחר'];
-function kBlankFw(){ return {id:uid(),label:'',kind:'גדוד',inspectorId:'',inspName:'',inspRank:''}; }
+function kBlankFw(){ return {id:uid(),label:'',kind:'גדוד',inspectorId:'',inspName:'',inspRank:'',insps:[]}; }
 function kBlankDraft(){ const m=BLANK().meta; m.dateFromISO=''; m.dateToISO=''; m.commander={uid:null,name:'',rank:'',role:''};
-  return {step:1, meta:m, frameworks:[kBlankFw()], gphEnabled:false, gphInspector:null}; }
+  return {step:1, meta:m, frameworks:[kBlankFw()], gphEnabled:false, gphInspector:null, gphInsps:[]}; }
 function kNewInsp(){ KA.draft=kBlankDraft(); kGo('new'); }
 function kTgt(T){ return T==='draft' ? KA.draft : S; }
 function kAfterEdit(T, rerender){ if(T==='live'){ save(); if(rerender){ kSecRefresh(T); renderNav(); kWsHeadRefresh(); } } else if(rerender) kSecRefresh(T); }
@@ -5591,11 +5621,17 @@ function kFwDel(T,i){ const t=kTgt(T); const f=t.frameworks[i]; if(!f) return;
   if(T==='live'){ const pr=fwProgress(f.id); if(!confirm(`למחוק את המסגרת "${f.label||'ללא שם'}"?${pr.done?`\nיימחקו גם ${pr.done} קריטריונים שכבר מולאו בה.`:''}`)) return;
     delete S.fw[f.id]; Object.keys(S.topicNA).forEach(k=>{ if(k.split('|')[0]===f.id) delete S.topicNA[k]; }); if(S.ui.activeFw===f.id) S.ui.activeFw=null; }
   t.frameworks.splice(i,1); kAfterEdit(T,true); }
-function kFwAssign(T,i,el){ const t=kTgt(T); const f=t.frameworks[i];
-  kPickUser(el,{title:`בקר למסגרת ${f.label||''}`.trim(), current:f.inspectorId, allowClear:true}, u=>{ f.inspectorId=u?u.id:''; f.inspName=u?u.name:''; f.inspRank=u?(u.rank||''):''; kAfterEdit(T,true); }); }
+function kFwInspAdd(T,i,el){ const t=kTgt(T); const f=t.frameworks[i]; if(!f) return; const cur=kFwInsps(f);
+  kPickUser(el,{title:`${cur.length?'בקר נוסף':'בקר'} למסגרת ${f.label||''}`.trim(), exclude:cur.map(x=>x.uid).filter(Boolean)},
+    u=>{ if(!u||!u.id) return; const list=kFwInsps(f).slice(); if(list.some(x=>x.uid===u.id)) return; list.push({uid:u.id,name:u.name,rank:u.rank||''}); kFwSetInsps(f,list); kAfterEdit(T,true); }); }
+function kFwInspDel(T,i,j){ const t=kTgt(T); const f=t.frameworks[i]; if(!f) return; const list=kFwInsps(f).slice(); list.splice(j,1); kFwSetInsps(f,list); kAfterEdit(T,true); }
+function kChips(f,T,i){ return kFwInsps(f).map((x,j)=>`<span class="k-chip ${x.uid&&x.uid===kMe()?'me':''} ${T?'':'ro'}">${kAv(kUserName(x.uid,x.name))}<span>${kesc(kUserLabel(x.uid,x.name,x.rank))}</span>${T?`<button onclick="kFwInspDel('${T}',${i},${j})" title="הסרת הבקר מהמסגרת" aria-label="הסרת הבקר מהמסגרת">${kic('x')}</button>`:''}</span>`).join(''); }
 function kGphToggle(T){ const t=kTgt(T); t.gphEnabled=!t.gphEnabled; kAfterEdit(T,true); }
-function kGphAssign(T,el){ const t=kTgt(T); kPickUser(el,{title:'בקר לרמת החטיבה (גפ"ה)', current:t.gphInspector&&t.gphInspector.uid, allowClear:true},
-  u=>{ t.gphInspector=u?{uid:u.id,name:u.name,rank:u.rank||''}:null; kAfterEdit(T,true); }); }
+function kGphAdd(T,el){ const t=kTgt(T); const cur=kGphInsps(t);
+  kPickUser(el,{title:(cur.length?'בקר נוסף':'בקר')+' לרמת החטיבה (גפ"ה)', exclude:cur.map(x=>x.uid).filter(Boolean)},
+    u=>{ if(!u||!u.id) return; const list=kGphInsps(t).slice(); if(list.some(x=>x.uid===u.id)) return; list.push({uid:u.id,name:u.name,rank:u.rank||''}); kGphSet(t,list); kAfterEdit(T,true); }); }
+function kGphDel(T,j){ const t=kTgt(T); const list=kGphInsps(t).slice(); list.splice(j,1); kGphSet(t,list); kAfterEdit(T,true); }
+function kGphChips(d,T){ return kGphInsps(d).map((x,j)=>`<span class="k-chip ${x.uid&&x.uid===kMe()?'me':''} ${T?'':'ro'}" style="background:#fff">${kAv(kUserName(x.uid,x.name))}<span>${kesc(kUserLabel(x.uid,x.name,x.rank))}</span>${T?`<button onclick="kGphDel('${T}',${j})" title="הסרת הבקר" aria-label="הסרת הבקר">${kic('x')}</button>`:''}</span>`).join(''); }
 function kCmdAssign(T,el){ const t=kTgt(T); const c=t.meta.commander||{};
   kPickUser(el,{title:'מפקד/ת הביקורת', current:c.uid, allowClear:true, allowFree:true}, u=>{ t.meta.commander=Object.assign({},c,{uid:u?u.id:null,name:u?u.name:'',rank:u?(u.rank||''):''}); kAfterEdit(T,true); }); }
 function kWho(uid,name,rank,onclick,placeholder,disabled){
@@ -5615,13 +5651,13 @@ function kSecGeneral(T){ const t=kTgt(T), m=t.meta, c=m.commander||{};
   </div>`; }
 function kSecFw(T){ const t=kTgt(T);
   const gph=`<div class="k-gph"><button class="k-tg ${t.gphEnabled?'on':''}" onclick="kGphToggle('${T}')" aria-label="כולל ביקורת רמת חטיבה" aria-pressed="${t.gphEnabled}"></button>
-    <div style="flex:1;min-width:180px"><b>כולל ביקורת רמת חטיבה (גפ"ה)</b><small>לא בכל ביקורת — מסמנים רק כשצריך, ומשבצים לה בקר</small></div>
-    ${t.gphEnabled?kWho(t.gphInspector&&t.gphInspector.uid,t.gphInspector&&t.gphInspector.name,t.gphInspector&&t.gphInspector.rank,`kGphAssign('${T}',this)`):''}</div>`;
+    <div style="flex:1;min-width:180px"><b>כולל ביקורת רמת חטיבה (גפ"ה)</b><small>לא בכל ביקורת — מסמנים רק כשצריך, ומשבצים לה בקר אחד או יותר</small></div>
+    ${t.gphEnabled?`<div class="k-insps" style="padding-inline-start:60px">${kGphChips(t,T)}<button class="k-addinsp" style="background:rgba(255,255,255,.6)" onclick="kGphAdd('${T}',this)">${kic('plus')}${kGphInsps(t).length?'בקר נוסף':'שיבוץ בקר'}</button></div>`:''}</div>`;
   const rows=t.frameworks.map((f,i)=>`<div class="k-fwr"><div class="k-ico">${i+1}</div>
     <div class="k-nm"><input class="k-inp" value="${kesc(f.label)}" placeholder="שם המסגרת" oninput="kFwSet('${T}',${i},'label',this.value)">
       <select class="k-inp" onchange="kFwSet('${T}',${i},'kind',this.value)">${K_KINDS.map(o=>`<option ${f.kind===o?'selected':''}>${o}</option>`).join('')}</select></div>
-    ${kWho(f.inspectorId,f.inspName,f.inspRank,`kFwAssign('${T}',${i},this)`)}
-    <button class="k-del" onclick="kFwDel('${T}',${i})" title="מחיקת המסגרת">${kic('trash')}</button></div>`).join('');
+    <button class="k-del" onclick="kFwDel('${T}',${i})" title="מחיקת המסגרת">${kic('trash')}</button>
+    <div class="k-insps">${kChips(f,T,i)}<button class="k-addinsp" onclick="kFwInspAdd('${T}',${i},this)">${kic('plus')}${kFwInsps(f).length?'בקר נוסף':'שיבוץ בקר'}</button></div></div>`).join('');
   return gph+`<div class="k-fws">${rows}<button class="k-addfw" onclick="kFwAdd('${T}')">${kic('plus')}הוספת מסגרת</button></div>`; }
 function kSecMethod(T){ const m=kTgt(T).meta;
   return `<div class="k-field"><label class="k-lbl">ברמת החטיבה</label><textarea class="k-inp" oninput="kSet('${T}','meta.methodBrigade',this.value)" placeholder="בחינת קיום נהלי הדרכה המתבצעים לכלל הגדודים והענפים, בהובלת המד&quot;ריה / גפ&quot;ה ומפקד החטיבה">${kesc(m.methodBrigade)}</textarea></div>
@@ -5636,14 +5672,14 @@ function kViewNew(){
     return `<button class="k-vs ${n<st?'ok':''} ${n===st?'on':''}" onclick="kWizGo(${n})"><span class="n">${n<st?kic('check'):n}</span><span>${t}</span></button>`; }).join('');
   let body='';
   if(st===1) body=`<h4>פרטי הביקורת</h4><p class="k-desc">מה נבדק, מתי ומי מפקד/ת על הביקורת.</p><div id="ksec_gen_draft">${kSecGeneral('draft')}</div>`;
-  if(st===2) body=`<h4>מי בודק מה?</h4><p class="k-desc">כל בקר שמשובץ כאן יראה את הביקורת באזור האישי שלו ויוכל לערוך רק את המסגרת שלו.</p><div id="ksec_fw_draft">${kSecFw('draft')}</div>`;
+  if(st===2) body=`<h4>מי בודק מה?</h4><p class="k-desc">אפשר לשבץ כמה בקרים לאותה מסגרת. כל בקר משובץ יראה את הביקורת באזור האישי שלו ויוכל לערוך רק את המסגרת שלו.</p><div id="ksec_fw_draft">${kSecFw('draft')}</div>`;
   if(st===3){ const m=d.meta, c=m.commander||{}; const asg=d.frameworks.filter(f=>f.label.trim());
     body=`<h4>שיטת הביקורת</h4><p class="k-desc">נכנס לסעיף "שיטת הביקורת" בדו"ח. אפשר להשאיר ריק ולהשלים אחר כך.</p>${kSecMethod('draft')}
       <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--k-border)"><h4 style="font-size:16px;margin-bottom:12px">סיכום לפני שמירה</h4>
       <dl class="k-sum"><dt>יחידה</dt><dd>${kesc(m.unit)||'—'}</dd><dt>ביקורת</dt><dd>${kesc(m.name||'ביקורת הדרכה')} · ${kesc(m.type)}</dd><dt>תאריכים</dt><dd>${kRange(m)||'—'}</dd>
       <dt>מפקד/ת</dt><dd>${c.name?kesc(kUserLabel(c.uid,c.name,c.rank)):'—'}</dd>
-      ${d.gphEnabled?`<dt>רמת חטיבה</dt><dd>${d.gphInspector?kesc(kUserLabel(d.gphInspector.uid,d.gphInspector.name,d.gphInspector.rank)):'לא שובץ'}</dd>`:''}
-      ${asg.map(f=>`<dt>${kesc(f.label)}</dt><dd>${f.inspectorId||f.inspName?kesc(kUserLabel(f.inspectorId,f.inspName,f.inspRank)):'<span class="k-muted">לא שובץ</span>'}</dd>`).join('')}</dl></div>`; }
+      ${d.gphEnabled?`<dt>רמת חטיבה</dt><dd>${kGphInsps(d).length?kesc(kGphLabels(d)):'לא שובץ'}</dd>`:''}
+      ${asg.map(f=>`<dt>${kesc(f.label)}</dt><dd>${kFwInsps(f).length?kesc(kFwLabels(f)):'<span class="k-muted">לא שובץ</span>'}</dd>`).join('')}</dl></div>`; }
   const foot=`<div class="k-wfoot">${st>1?`<button class="k-btn k-btn-g" onclick="kWizGo(${st-1})">חזרה</button>`:`<button class="k-btn k-btn-g" onclick="KA.draft=null;kGo('archive')">ביטול</button>`}
     ${st<3?`<button class="k-btn k-btn-p" onclick="kWizGo(${st+1})">המשך ${kic('arrow')}</button>`:`<button class="k-btn k-btn-p" onclick="kCreate()">${kic('check')}שמירת הביקורת</button>`}</div>`;
   return `<div class="k-head"><div><div class="k-eyebrow">ביקורת חדשה · שלב ${st} מתוך 3</div><h1>${['','פרטים כלליים','מסגרות ושיבוץ בקרים','שיטה ושמירה'][st]}</h1></div></div>
@@ -5658,11 +5694,11 @@ function kCreate(){
   const bad=kWizValid(3); if(bad){ KA.draft.step=bad; kRenderMain(); return; }
   const d=KA.draft; const id=kNewId();
   const frameworks=d.frameworks.filter(f=>f.label.trim()).map(f=>Object.assign({},f,{label:f.label.trim()}));
-  const doc={ meta:kclone(d.meta), frameworks, gphEnabled:!!d.gphEnabled, gphInspector:d.gphEnabled?(d.gphInspector||null):null,
+  const doc={ meta:kclone(d.meta), frameworks, gphEnabled:!!d.gphEnabled, gphInspector:d.gphEnabled?(kGphInsps(d)[0]||null):null, gphInsps:d.gphEnabled?kGphInsps(d):[],
     gph:{}, topicNA:{}, report:BLANK().report, progress:{}, createdAt:Date.now(), createdBy:kMe(), updatedAt:Date.now() };
   KA.insps[id]=kclone(doc);
   KA.store.setInsp(id,doc).catch(()=>toast('השמירה בענן נכשלה — בדקו את החיבור'));
-  const n=frameworks.filter(f=>f.inspectorId).length + (doc.gphInspector&&doc.gphInspector.uid?1:0);
+  const us=new Set(); frameworks.forEach(f=>kFwInsps(f).forEach(x=>{ if(x.uid) us.add(x.uid); })); kGphInsps(doc).forEach(x=>{ if(x.uid) us.add(x.uid); }); const n=us.size;
   KA.draft=null; toast(n===1?'הביקורת נשמרה · הבקר המשובץ יראה אותה באזור האישי':n?`הביקורת נשמרה · ${n} בקרים יראו אותה באזור האישי`:'הביקורת נשמרה במאגר'); kGo('archive');
 }
 
@@ -5741,10 +5777,10 @@ function kImportObj(o){
   if(m.dateFromISO) m.dateFrom=kFmtShort(m.dateFromISO); if(m.dateToISO) m.dateTo=kFmtShort(m.dateToISO);
   const insp=o.inspectors||[];
   const frameworks=o.frameworks.map(f=>{ const p=insp.find(x=>x.id===f.inspectorId); const u=p?kUsersSorted().find(x=>x.name===(p.name||'').trim()):null;
-    return {id:f.id||uid(), label:f.label||'מסגרת', kind:f.kind||'גדוד', inspectorId:u?u.id:'', inspName:p?(p.name||''):'', inspRank:p?(p.rank||''):''}; });
+    return {id:f.id||uid(), label:f.label||'מסגרת', kind:f.kind||'גדוד', inspectorId:u?u.id:'', inspName:p?(p.name||''):'', inspRank:p?(p.rank||''):'', insps:p?[{uid:u?u.id:'',name:p.name||'',rank:p.rank||''}]:[]}; });
   const keep=S; const tmp=Object.assign(BLANK(),{frameworks, fw:kclone(o.fw||{}), gph:kclone(o.gph||{}), topicNA:kclone(o.topicNA||{})});
   S=tmp; const progress={}; frameworks.forEach(f=>{ S.fw[f.id]=S.fw[f.id]||{}; progress[f.id]=kFwProg(f.id); }); progress.gph=kGphProg(); S=keep;
-  const doc={meta:m, frameworks, gphEnabled:Object.keys(o.gph||{}).length>0, gphInspector:null, gph:kclone(o.gph||{}), topicNA:kclone(o.topicNA||{}),
+  const doc={meta:m, frameworks, gphEnabled:Object.keys(o.gph||{}).length>0, gphInspector:null, gphInsps:[], gph:kclone(o.gph||{}), topicNA:kclone(o.topicNA||{}),
     report:Object.assign(BLANK().report, kclone(o.report||{})), progress, createdAt:Date.now(), createdBy:kMe(), updatedAt:Date.now(), importedAt:Date.now()};
   KA.insps[id]=kclone(doc);
   KA.store.setInsp(id,doc).catch(()=>toast('השמירה בענן נכשלה — בדקו את החיבור'));
@@ -5768,20 +5804,19 @@ function kWsMount(m){
   if(KA.ws.ready){ kWsHeadRefresh(); render(); }
 }
 function kWsBack(){ kGo(KA.lastList||kDefaultView()); }
-function kCore(s){ return {meta:s.meta, frameworks:s.frameworks, gphEnabled:!!s.gphEnabled, gphInspector:s.gphInspector||null, gph:s.gph, topicNA:s.topicNA, report:s.report, fw:s.fw}; }
+function kCore(s){ return {meta:s.meta, frameworks:s.frameworks, gphEnabled:!!s.gphEnabled, gphInspector:s.gphInspector||null, gphInsps:s.gphInsps||[], gph:s.gph, topicNA:s.topicNA, report:s.report, fw:s.fw}; }
 function kDeriveInspectors(s){ const out=[], seen=new Set();
-  (s.frameworks||[]).forEach(f=>{ if(f.inspectorId&&!seen.has(f.inspectorId)){ seen.add(f.inspectorId); const u=KA.users[f.inspectorId];
-    out.push({id:f.inspectorId, name:u?u.name:(f.inspName||''), rank:u?(u.rank||''):(f.inspRank||''), role:''}); }
-  });
-  if(s.gphEnabled&&s.gphInspector&&s.gphInspector.uid&&!seen.has(s.gphInspector.uid)){ const u=KA.users[s.gphInspector.uid];
-    out.push({id:s.gphInspector.uid, name:u?u.name:s.gphInspector.name, rank:u?(u.rank||''):(s.gphInspector.rank||''), role:''}); }
+  (s.frameworks||[]).forEach(f=>kFwInsps(f).forEach(x=>{ if(x.uid&&!seen.has(x.uid)){ seen.add(x.uid); const u=KA.users[x.uid];
+    out.push({id:x.uid, name:u?u.name:(x.name||''), rank:u?(u.rank||''):(x.rank||''), role:''}); } }));
+  if(s.gphEnabled) kGphInsps(s).forEach(x=>{ if(x.uid&&!seen.has(x.uid)){ seen.add(x.uid); const u=KA.users[x.uid];
+    out.push({id:x.uid, name:u?u.name:(x.name||''), rank:u?(u.rank||''):(x.rank||''), role:''}); } });
   return out; }
 function kBuildS(doc,fws,ui){
   const s=BLANK();
   s.meta=Object.assign(s.meta, kclone(doc.meta||{})); s.meta.commander=Object.assign({uid:null,name:'',rank:'',role:''}, s.meta.commander||{});
   s.meta.dateFromISO=s.meta.dateFromISO||''; s.meta.dateToISO=s.meta.dateToISO||'';
   s.frameworks=kclone(doc.frameworks||[]);
-  s.gphEnabled=!!doc.gphEnabled; s.gphInspector=doc.gphInspector?kclone(doc.gphInspector):null;
+  s.gphEnabled=!!doc.gphEnabled; s.gphInspector=doc.gphInspector?kclone(doc.gphInspector):null; s.gphInsps=kclone(kGphInsps(doc));
   s.gph=kclone(doc.gph||{}); s.topicNA=kclone(doc.topicNA||{});
   s.report=Object.assign(BLANK().report, kclone(doc.report||{})); if(!Array.isArray(s.report.directives)) s.report.directives=['','',''];
   s.fw={}; s.frameworks.forEach(f=>{ const d=fws[f.id]||{}; s.fw[f.id]={prog:kclone(d.prog||{}),cmd:kclone(d.cmd||{}),trainee:kclone(d.trainee||{})}; });
@@ -5823,17 +5858,20 @@ function save(){ if(!KA.ws||!KA.ws.ready||!S) return; clearTimeout(KS.timer); KS
 function load(){}
 function kDiffMap(cur,base,fn){ cur=cur||{}; base=base||{}; const keys=new Set([...Object.keys(cur),...Object.keys(base)]);
   keys.forEach(k=>{ if(kjson(cur[k])!==kjson(base[k])) fn(k,cur[k]); }); }
+function kCellPairs(prefix,cur,base){ const isO=x=>x&&typeof x==='object'&&!Array.isArray(x);
+  if(cur===undefined) return [[prefix,K_LDEL]]; if(!isO(cur)||!isO(base)) return [[prefix,kclone(cur)]];
+  const out=[]; kDiffMap(cur,base,(k,v)=>out.push([prefix.concat(k), v===undefined?K_LDEL:kclone(v)])); return out; }
 function kFlush(){
   clearTimeout(KS.timer); KS.timer=null;
   if(!KA.ws.id||!KS.base||!S) return;
   const id=KA.ws.id, base=KS.base, cur=kCore(S), store=KA.store, DEL=store.DEL();
   const main=[], fwP={}, denied=new Set(); let gphTouched=false; const touched=new Set();
-  ['meta','frameworks','gphEnabled','gphInspector'].forEach(k=>{ if(kjson(cur[k])!==kjson(base[k])){ if(kIsAdmin()) main.push([[k],kclone(cur[k])]); else denied.add(k); } });
-  kDiffMap(cur.gph,base.gph,(k,v)=>{ if(kCanScope('gph')){ main.push([['gph',k], v===undefined?K_LDEL:kclone(v)]); gphTouched=true; } else denied.add('gph'); });
+  ['meta','frameworks','gphEnabled','gphInspector','gphInsps'].forEach(k=>{ if(kjson(cur[k])!==kjson(base[k])){ if(kIsAdmin()) main.push([[k],kclone(cur[k])]); else denied.add(k); } });
+  kDiffMap(cur.gph,base.gph,(k,v)=>{ if(kCanScope('gph')){ main.push(...kCellPairs(['gph',k],v,(base.gph||{})[k])); gphTouched=true; } else denied.add('gph'); });
   kDiffMap(cur.topicNA,base.topicNA,(k,v)=>{ const sc=k.split('|')[0]; if(kCanScope(sc)){ main.push([['topicNA',k], v?true:K_LDEL]); if(sc==='gph') gphTouched=true; else touched.add(sc); } else denied.add('na'); });
   kDiffMap(cur.report,base.report,(k,v)=>{ if(kCanReport()) main.push([['report',k], v===undefined?K_LDEL:kclone(v)]); else denied.add('report'); });
   Object.keys(cur.fw||{}).forEach(fid=>{ FW_DIMS.forEach(dim=>{
-    kDiffMap((cur.fw[fid]||{})[dim], ((base.fw||{})[fid]||{})[dim], (k,v)=>{ if(kCanScope(fid)){ (fwP[fid]=fwP[fid]||[]).push([[dim,k], v===undefined?K_LDEL:kclone(v)]); touched.add(fid); } else denied.add(fid); }); }); });
+    kDiffMap((cur.fw[fid]||{})[dim], ((base.fw||{})[fid]||{})[dim], (k,v)=>{ if(kCanScope(fid)){ (fwP[fid]=fwP[fid]||[]).push(...kCellPairs([dim,k],v,(((base.fw||{})[fid]||{})[dim]||{})[k])); touched.add(fid); } else denied.add(fid); }); }); });
   const removed=Object.keys(base.fw||{}).filter(fid=>!(cur.fw||{})[fid]);
   if(gphTouched) main.push([['progress','gph'], kGphProg()]);
   touched.forEach(fid=>{ if(S.fw[fid]) main.push([['progress',fid], kFwProg(fid)]); });
@@ -5857,7 +5895,7 @@ TITLES.report=['דו"ח','הפקה אוטומטית של דו"ח מובנה וש
 function renderNav(){
   const el=document.getElementById('nav'); if(!el||!S) return;
   const ready=S.frameworks.length>0; const me=kMe(); const adm=kIsAdmin();
-  const myFw=!adm && S.frameworks.some(f=>f.inspectorId===me), myG=!adm && S.gphEnabled && S.gphInspector && S.gphInspector.uid===me;
+  const myFw=!adm && S.frameworks.some(f=>kFwHas(f,me)), myG=!adm && S.gphEnabled && kGphHas(S,me);
   const items=[{k:'home',label:'פרטי הביקורת',icon:ICONS.home}];
   if(S.gphEnabled) items.push({k:'brigade',label:'רמת חטיבה',icon:ICONS.brigade,mine:myG});
   items.push({k:'fw',label:'ביקורת מסגרות',icon:ICONS.framework,lock:!ready,mine:myFw},{k:'dash',label:'עיבוד',icon:ICONS.dash,lock:!ready},{k:'report',label:'דו"ח',icon:ICONS.report,lock:!ready});
@@ -5889,13 +5927,13 @@ function viewHome(v){
   }
   const m=S.meta, c=m.commander||{}; const roles=kMyRoles(S);
   const fwRows=S.frameworks.map((f,i)=>`<div class="k-fwr"><div class="k-ico">${i+1}</div><div class="k-nm" style="flex-direction:column;gap:0"><b>${kesc(f.label||'מסגרת')}</b><small class="k-muted">${kesc(f.kind||'')}</small></div>
-    ${kWho(f.inspectorId,f.inspName,f.inspRank,'','לא שובץ',true)}${f.inspectorId===kMe()?'<span class="k-role adm">שלך</span>':''}</div>`).join('');
+    <div class="k-insps">${kChips(f)||'<span class="k-muted" style="font-size:13.5px">לא שובצו בקרים</span>'}${kFwHas(f,kMe())?'<span class="k-role adm">שלך</span>':''}</div></div>`).join('');
   v.innerHTML=`${roles.length?`<div class="k-banner ok">${kic('pen')}את/ה משובץ/ת בביקורת הזו: ${roles.map(r=>kesc(r.label)).join(' · ')}</div>`:`<div class="k-banner info">${kic('eye')}את/ה צופה בביקורת הזו — העריכה פתוחה לבקרים המשובצים</div>`}
     <div class="k-card k-form"><h4>פרטים כלליים</h4><p class="k-desc">הפרטים מוגדרים על ידי מנהלות המערכת.</p>
       <dl class="k-sum"><dt>יחידה</dt><dd>${kesc(m.unit)||'—'}</dd><dt>ביקורת</dt><dd>${kesc(m.name||'ביקורת הדרכה')} · ${kesc(m.type||'')}</dd>${m.integrative?`<dt>הקשר</dt><dd>${kesc(m.integrative)}</dd>`:''}
       <dt>תאריכים</dt><dd>${kRange(m)||'—'}</dd><dt>מפקד/ת</dt><dd>${c.name?kesc(kUserLabel(c.uid,c.name,c.rank))+(c.role?' — '+kesc(c.role):''):'—'}</dd></dl></div>
     <div class="k-card k-form"><h4>מסגרות ובקרים</h4><p class="k-desc">${S.frameworks.length} מסגרות${S.gphEnabled?' + רמת חטיבה':''}</p>
-      ${S.gphEnabled?`<div class="k-fwr" style="margin-bottom:10px;background:var(--k-c4);border-color:transparent"><div class="k-ico" style="background:#fff;color:var(--k-i4)">ח</div><div class="k-nm" style="flex-direction:column;gap:0"><b>רמת חטיבה (גפ"ה)</b></div>${kWho(S.gphInspector&&S.gphInspector.uid,S.gphInspector&&S.gphInspector.name,S.gphInspector&&S.gphInspector.rank,'','לא שובץ',true)}</div>`:''}
+      ${S.gphEnabled?`<div class="k-fwr" style="margin-bottom:10px;background:var(--k-c4);border-color:transparent"><div class="k-ico" style="background:#fff;color:var(--k-i4)">ח</div><div class="k-nm" style="flex-direction:column;gap:0"><b>רמת חטיבה (גפ"ה)</b></div><div class="k-insps">${kGphChips(S)||'<span class="k-muted" style="font-size:13.5px">לא שובצו בקרים</span>'}</div></div>`:''}
       <div class="k-fws">${fwRows||'<p class="k-muted">לא הוגדרו מסגרות.</p>'}</div></div>
     ${(m.methodBrigade||m.methodFramework)?`<div class="k-card k-form"><h4>שיטת הביקורת</h4><dl class="k-sum"><dt>ברמת החטיבה</dt><dd style="font-weight:400">${kesc(m.methodBrigade)||'—'}</dd><dt>ברמת המסגרת</dt><dd style="font-weight:400">${kesc(m.methodFramework)||'—'}</dd></dl></div>`:''}`;
 }
@@ -5910,25 +5948,26 @@ function importJSON(e){ const f=e.target.files[0]; if(!f) return; e.target.value
 const K_BANNER = (cls,ic,txt) => `<div class="k-banner ${cls}">${kic(ic)}<span>${txt}</span></div>`;
 const _kViewFw = viewFw;
 viewFw = function(v){
-  if(!S.ui.activeFw || !S.frameworks.find(f=>f.id===S.ui.activeFw)){ const mine=S.frameworks.find(f=>f.inspectorId===kMe()); S.ui.activeFw=(mine||S.frameworks[0]).id; }
+  if(!S.ui.activeFw || !S.frameworks.find(f=>f.id===S.ui.activeFw)){ const mine=S.frameworks.find(f=>kFwHas(f,kMe())); S.ui.activeFw=(mine||S.frameworks[0]).id; }
   _kViewFw(v);
-  const fid=S.ui.activeFw, f=S.frameworks.find(x=>x.id===fid), can=kCanScope(fid), own=f&&f.inspectorId===kMe();
+  const fid=S.ui.activeFw, f=S.frameworks.find(x=>x.id===fid), can=kCanScope(fid), own=f&&kFwHas(f,kMe());
   v.classList.toggle('k-ro', !can);
   v.querySelectorAll('.fw-tab').forEach((b,i)=>{ const fr=S.frameworks[i]; if(!fr) return;
     b.insertAdjacentHTML('afterbegin', `<svg class="k-ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${K_ICON[kCanScope(fr.id)?'pen':'lock']}</svg>`);
-    if(fr.inspectorId===kMe()) b.insertAdjacentHTML('beforeend','<span class="k-own">שלך</span>');
-    b.title = fr.inspectorId||fr.inspName ? 'בקר: '+kUserLabel(fr.inspectorId,fr.inspName,fr.inspRank) : 'לא שובץ בקר'; });
-  const who = f&&(f.inspectorId||f.inspName) ? kesc(kUserLabel(f.inspectorId,f.inspName,f.inspRank)) : 'לא שובץ בקר';
-  const ban = own ? K_BANNER('ok','pen','זה הענף שלך — כל שינוי נשמר בענן מיד ומופיע אצל כל הצוות')
-    : can ? K_BANNER('info','pen',`עריכה כמנהל/ת · בקר משובץ: ${who}`)
+    if(kFwHas(fr,kMe())) b.insertAdjacentHTML('beforeend','<span class="k-own">שלך</span>');
+    b.title = kFwInsps(fr).length ? (kFwInsps(fr).length>1?'בקרים: ':'בקר: ')+kFwLabels(fr) : 'לא שובץ בקר'; });
+  const who = f&&(kFwInsps(f).length) ? kesc(kFwLabels(f)) : 'לא שובץ בקר';
+  const co = f ? kFwInsps(f).filter(x=>x.uid!==kMe()).map(x=>kesc(kUserLabel(x.uid,x.name,x.rank))).join(', ') : '';
+  const ban = own ? K_BANNER('ok','pen','זה הענף שלך — כל שינוי נשמר בענן מיד ומופיע אצל כל הצוות'+(co?` · יחד איתך: ${co}`:''))
+    : can ? K_BANNER('info','pen',`עריכה כמנהל/ת · ${who}`)
     : K_BANNER('ro','lock',`צפייה בלבד · ${kesc(f?f.label:'')} — ${who}`);
   const tabs=v.querySelector('.fw-tabs'); if(tabs) tabs.insertAdjacentHTML('afterend', ban); else v.insertAdjacentHTML('afterbegin', ban);
 };
 const _kViewBrigade = viewBrigade;
 viewBrigade = function(v){
-  _kViewBrigade(v); const can=kCanScope('gph'); const g=S.gphInspector; const own=g&&g.uid===kMe();
+  _kViewBrigade(v); const can=kCanScope('gph'); const g=kGphInsps(S).length; const own=kGphHas(S,kMe());
   v.classList.toggle('k-ro', !can);
-  const who = g ? kesc(kUserLabel(g.uid,g.name,g.rank)) : 'לא שובץ בקר';
+  const who = g ? kesc(kGphLabels(S)) : 'לא שובץ בקר';
   v.insertAdjacentHTML('afterbegin', own ? K_BANNER('ok','pen','זו רמת החטיבה שלך — כל שינוי נשמר בענן מיד') : can ? K_BANNER('info','pen',`עריכה כמנהל/ת · בקר משובץ: ${who}`) : K_BANNER('ro','lock',`צפייה בלבד · בקר משובץ: ${who}`));
   if(!S.frameworks.length){ const b=v.querySelector('.flow-foot .btn-primary'); if(b) b.remove(); }
 };
