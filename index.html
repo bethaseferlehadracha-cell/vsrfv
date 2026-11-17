@@ -4440,6 +4440,7 @@ function viewDash(v){
     return `<tr><td>${esc(f.label||'מסגרת')} <span class="muted" style="font-weight:400;font-size:11px">${esc(f.kind)}</span></td>${cells}<td><span class="cellscore bg-${fb.k}">${fmt(fs)}</span></td></tr>`;
   }).join('');
   const gs=gphScore(),gb=band(gs);
+  const rowsAll=kGphMatrixRow()+rows;
   const patterns=detectPatterns();
   v.innerHTML=`
   <div class="kpi-row">
@@ -4451,11 +4452,11 @@ function viewDash(v){
   </div>
 
   <div class="card subcard" style="margin-bottom:22px">
-    <div class="section-h"><span class="num">${svg(ICONS.dash,'style="width:14px;height:14px"')}</span><h3>חלוקת ציונים — מסגרות × ממדי הדרכה</h3><p>${S.frameworks.length} מסגרות</p></div>
+    <div class="section-h"><span class="num">${svg(ICONS.dash,'style="width:14px;height:14px"')}</span><h3>חלוקת ציונים — מסגרות × ממדי הדרכה</h3><p>${S.frameworks.length} מסגרות${S.gphEnabled?' + רמת חטיבה':''}</p></div>
     <div style="overflow-x:auto">
     <table class="matrix">
       <thead><tr><th>מסגרת</th><th>תכנית הכשרה</th><th>סגל</th><th>חניכים</th><th>ציון מסגרת</th></tr></thead>
-      <tbody>${rows||'<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">אין מסגרות</td></tr>'}
+      <tbody>${rowsAll||'<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">אין מסגרות</td></tr>'}
         <tr class="total-row"><td>ממוצע רוחבי</td>
           ${dims.map(d=>`<td>${fmt(dimAvgAcrossFw(d))}</td>`).join('')}
           <td>${fmt(ov)}</td></tr>
@@ -4614,7 +4615,7 @@ function reportHTML(){
     <div class="kv"><b>שם / סוג הביקורת:</b><span>${esc(m.name)} · ${esc(m.type)}${m.integrative?' · '+esc(m.integrative):''}</span></div>
     <div class="kv"><b>מפקד הביקורת:</b><span>${esc(cmdLine)||'—'}</span></div>
     <p style="margin-top:8px"><b style="color:var(--olive-d)">המסגרות הנבדקות וצוות הביקורת:</b></p>
-    <ul>${fwList||'<li>—</li>'}</ul>
+    <ul>${(kGphListItem()+fwList)||'<li>—</li>'}</ul>
     <p style="margin-top:8px"><b style="color:var(--olive-d)">שיטת הביקורת:</b></p>
     <ul>
       <li><b>ברמת החטיבה:</b> ${esc(m.methodBrigade)||'בחינת קיום נהלי הדרכה לכלל הגדודים והענפים, בהובלת המד"ריה / גפ"ה ומפקד החטיבה.'}</li>
@@ -4626,9 +4627,9 @@ function reportHTML(){
     <div class="rsec-h"><span class="n">2</span><h3>הערכה מסכמת וציון הביקורת</h3></div>
     ${S.report.summary&&S.report.summary.trim()?`<p style="white-space:pre-line;margin-bottom:10px">${esc(S.report.summary)}</p>`:''}
     <p>הציון המסכם המשוקלל של הביקורת: <b style="font-size:18px" class="${ob.c}">${fmt(ov)}</b> / 100 — ${ob.t}.
-    ${(gphScore()!=null)?` ציון רמת החטיבה (גפ"ה): <b>${fmt(gphScore())}</b>.`:''}</p>
+</p>
     <table class="rtable"><thead><tr><th>מסגרת / ממד הדרכה</th>${dimHead}</tr></thead>
-      <tbody>${fwRows||'<tr><td colspan="6" class="c">—</td></tr>'}
+      <tbody>${(kGphReportRow()+fwRows)||'<tr><td colspan="6" class="c">—</td></tr>'}
       <tr style="background:var(--olive-soft);font-weight:800"><td><b>ציון מסכם</b></td>
         ${dims.map(d=>`<td class="c">${fmt(dimAvgAcrossFw(d))}</td>`).join('')}<td class="c">${fmt(ov)}</td></tr></tbody></table>
   </div>
@@ -4671,9 +4672,13 @@ function findingsTable(dimKey,topics,getter){
     <th>התשובה שנבחרה</th><th style="width:9%" class="c">ציון</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function brigadeFindings(){
+  if(!S.gphEnabled) return '';
   const tbl=findingsTable('gph',DATA.gph,gphCell);
   if(!tbl) return '';
-  return `<div class="subhead">ברמת החטיבה — מסגרת הגפ"ה / מד"ריה <span class="pill bg-${band(gphScore()).k}">${fmt(gphScore())}</span></div>${tbl}`;
+  const s=gphScore(); const who=kGphLabels(S);
+  return `<div class="subhead" style="margin-top:20px;font-size:15px;border-top:1px solid var(--line);padding-top:14px">מסגרת רמת החטיבה (גפ"ה / מד"ריה) <span class="pill bg-${band(s).k}">${fmt(s)}</span></div>
+    ${who?`<p class="muted" style="font-size:12.5px;margin:2px 0 4px">נבדקה ע"י: ${esc(who)}</p>`:''}
+    <div class="subhead" style="font-size:13.5px;margin-top:13px">ממד רמת החטיבה ${s!=null?`<span class="pill bg-${band(s).k}">${Math.round(s)}</span>`:''}</div>${tbl}`;
 }
 function frameworkFindings(f){
   const parts=FW_DIMS.map(d=>{
@@ -4683,7 +4688,8 @@ function frameworkFindings(f){
     return `<div class="subhead" style="font-size:13.5px;margin-top:13px">ממד ${DIM_META[d].label} ${s!=null?`<span class="pill bg-${band(s).k}">${Math.round(s)}</span>`:''}</div>${tbl}`;
   }).filter(Boolean).join('');
   if(!parts) return '';
-  return `<div class="subhead" style="margin-top:20px;font-size:15px;border-top:1px solid var(--line);padding-top:14px">מסגרת ${esc(f.label||'')} <span class="pill bg-${band(fwScore(f.id)).k}">${fmt(fwScore(f.id))}</span></div>${parts}`;
+  const who=kFwLabels(f);
+  return `<div class="subhead" style="margin-top:20px;font-size:15px;border-top:1px solid var(--line);padding-top:14px">מסגרת ${esc(f.label||'')} <span class="pill bg-${band(fwScore(f.id)).k}">${fmt(fwScore(f.id))}</span></div>${who?`<p class="muted" style="font-size:12.5px;margin:2px 0 4px">נבדקה ע"י: ${esc(who)}</p>`:''}${parts}`;
 }
 
 /* ============ import/export/reset ============ */
@@ -5943,6 +5949,16 @@ function kDeleteInsp(){ if(!kIsAdmin()) return; const id=KA.ws.id; const name=S.
   clearTimeout(KS.timer); KS.timer=null; const ws=KA.ws; (ws.unsubs||[]).forEach(f=>{ try{f();}catch(e){} }); KA.ws={id:null,doc:null,fws:{},unsubs:[],ready:false};
   delete KA.insps[id]; KA.store.delInsp(id).catch(()=>toast('המחיקה בענן נכשלה')); toast('הביקורת נמחקה'); kGo('archive'); }
 function importJSON(e){ const f=e.target.files[0]; if(!f) return; e.target.value=''; toast('ייבוא נעשה ממאגר הביקורות'); }
+
+/* ---- רמת החטיבה כשורה בטבלאות הציונים וברשימת המסגרות בדו"ח ---- */
+function kGphMatrixRow(){ if(!S.gphEnabled) return ''; const s=gphScore(), b=band(s);
+  return `<tr><td>רמת חטיבה <span class="muted" style="font-weight:400;font-size:11px">גפ"ה / מד"ריה</span></td>
+    <td colspan="3" style="text-align:center"><span class="muted" style="font-size:12px">ממד רמת החטיבה</span> ${s==null?'<span class="na">—</span>':`<span class="cellscore bg-${b.k}">${Math.round(s)}</span>`}</td>
+    <td>${s==null?'<span class="na">—</span>':`<span class="cellscore bg-${b.k}">${fmt(s)}</span>`}</td></tr>`; }
+function kGphReportRow(){ if(!S.gphEnabled) return ''; const s=gphScore(), b=band(s);
+  return `<tr><td><b>רמת חטיבה (גפ"ה)</b></td><td class="c" colspan="3">ממד רמת החטיבה: ${s==null?'—':Math.round(s)}</td><td class="c scorecell">${fmt(s)} ${b.t!=='—'?'· '+b.t:''}</td></tr>`; }
+function kGphListItem(){ if(!S.gphEnabled) return ''; const who=kGphLabels(S);
+  return `<li><b>רמת חטיבה</b> (גפ"ה / מד"ריה) — נבדקה ע"י: ${who?esc(who):'לא הוקצה'}</li>`; }
 
 /* ---- עטיפת מסכי האיסוף: עריכה רק בענף שלך ---- */
 const K_BANNER = (cls,ic,txt) => `<div class="k-banner ${cls}">${kic(ic)}<span>${txt}</span></div>`;
